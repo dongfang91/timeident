@@ -1,8 +1,8 @@
 import json
 import h5py
 import numpy as np
-import csv
 import sys
+import shutil
 if sys.version_info[0]==2:
     import cPickle as pickle
 else:
@@ -28,10 +28,10 @@ def savein_pickle(file,array):
 def readfrom_pickle(file):
     with open(file, 'rb') as handle:
         if sys.version_info[0] == 2:
-            b = pickle.load(handle)
+            data = pickle.load(handle)
         else:
-            b = pickle.load(handle,encoding='latin1')
-    return b
+            data = pickle.load(handle,encoding='latin1')
+    return data
 
 def readfrom_txt(path):
     data =open(path).read()
@@ -39,12 +39,10 @@ def readfrom_txt(path):
 
 def textfile2list(path):
     data = readfrom_txt(path)
-    list_new =list()
+    txt_list =list()
     for line in data.splitlines():
-        list_new.append(line)
-    return list_new
-
-
+        txt_list.append(line)
+    return txt_list
 
 def load_hdf5(filename,labels):
     data = list()
@@ -64,6 +62,10 @@ def save_hdf5(filename,labels,data,dtypes):
     for index in range(data_size):
         f.create_dataset(labels[index], data=data[index], dtype=dtypes[index])
 
+def movefiles(old_address,new_address,dir_simples,abbr):
+    for dir_simple in dir_simples:
+        desti = new_address+dir_simple +abbr
+        shutil.copy(old_address+dir_simple+abbr,desti)
 
 
 
