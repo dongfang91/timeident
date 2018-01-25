@@ -1,3 +1,4 @@
+# encoding: utf-8
 import json
 import h5py
 import numpy as np
@@ -66,6 +67,4 @@ def movefiles(old_address,new_address,dir_simples,abbr):
     for dir_simple in dir_simples:
         desti = new_address+dir_simple +abbr
         shutil.copy(old_address+dir_simple+abbr,desti)
-
-
 
