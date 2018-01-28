@@ -1,6 +1,8 @@
 # encoding: utf-8
 import re
 from nltk.tokenize import sent_tokenize
+from nltk.tag.stanford import StanfordPOSTagger
+import nltk
 
 def addannotation_to_dict(posi_info_dict,annotation,raw_text):
     if posi_info_dict.has_key(annotation.spans[0][0]):
@@ -58,16 +60,120 @@ def rule_based_tokenizer(sent,sent_span): # sent,sent_span
 
     if re.search(r' \.+ ',sent):
         sentences = re.split(r' \.+ ', sent)
-    if re.search(r', and, ',sent):
+    elif re.search(r'@ ---- @', sent):
+        sentences = re.split(r'@ ---- @', sent)
+    elif re.search(r'\.\w+\:', sent):
+        sent = re.sub(r'\.(\w+)\:', r'. \1:', sent)
+        sentences = sent_tokenize(sent)
+    elif re.search(r'\, as well as',sent):
+        sent = sent.replace(', as well as','. As well as')
+        sentences = sent_tokenize(sent)
+    elif re.search(r', and, ',sent):
         sent = sent.replace(', and, ','. And, ')
         sentences = sent_tokenize(sent)
-    if re.search(r'president\: Wechsler',sent):
-        sent = sent.replace('president: Wechsler', 'president. Wechsler')
+    elif re.search(r'president\: Wechsler',sent):
+        sent = sent.replace(': ', '. ')
         sentences = sent_tokenize(sent)
-    if re.search(r'@ ---- @', sent):
-        sentences = re.split(r'@ ---- @', sent)
+    elif re.search(r'\; ', sent):
+        sent = re.sub(r'\; ', r'. ', sent)
+        sentences = sent_tokenize(sent)
+    elif re.search(r'\, ', sent):
+        sentences = re.split(r'\, ', sent)
+    else:
+        sentences = [sent]
+
 
     sent_tokenize_span_list = spans(sentences, sent)
     sent_tokenize_span_list , max_len = add_start_end(sent_tokenize_span_list,start)
     #print sent_tokenize_span_list,max_len
     return sent_tokenize_span_list , max_len
+
+def get_pos_sentence(sentences_spans,pos_vocab):
+    """
+    Get POS tags for each sentence. (needed to build end2end system)
+    :param start:
+    :param end:
+    :return:
+    """
+    #raw_dir_simple = read.read_from_json('test/test_dir_simple')   #### in folder data/
+    #raw_dir_simple = read.read_from_json('clinical_data/train_samples1_simples')
+    #raw_dir_simple = read.read_from_json('agriculture_data/raw_dir_simple')
+
+    #raw_dir_simple = ["NYT19980206.0466"]
+    english_postagger = StanfordPOSTagger(
+        'C:/Users/dongfangxu9/PycharmProjects/pos_tagger/models/english-left3words-distsim.tagger',    #### in folder data/
+        'C:/Users/dongfangxu9/PycharmProjects/pos_tagger/stanford-postagger.jar') #### in folder data/
+    english_postagger.java_options = '-mx8000m'
+    pos_sentences = list()
+
+    for sent_span in sentences_spans:
+        print sent_span[0]
+        text = nltk.word_tokenize(sent_span[0])
+        text_pos = english_postagger.tag(text)   #####StanfordPnOSTagger failed to tag the underscore, see ttps://github.com/nltk/nltk/issues/1632  if use nltk 3.2.2, please change the code "word_tags = tagged_word.strip().split(self._SEPARATOR)" in function "parse_outputcode" of nltk.standford.py to "word_tags = tagged_word.strip().rsplit(self._SEPARATOR,1)" to handle undersocre issues
+
+        index = 0
+        for token in text_pos:
+            # if (text[index] != token[0]) and (token[0] == '``' or token[0] == "''"):  ######### deal with the double quotes, in nltk.tokenize treebank.py change the tokenizer for double quotes. Reasons: (double quotes (") are changed to doubled single forward- and backward- quotes (`` and ''))
+            #     text_pos[index] = ["\"", "\'\'"]
+            if text[index] == token[0] and token[0] == "``"  and text[index] not in sent_span[0]:
+                text_pos[index] = ["\"", "``"]
+            if text[index] ==token[0] and token[0] == "''"  and text[index] not in sent_span[0]:
+                text_pos[index] = ["\"", "\'\'"]
+            if text[index] == token[0] and token[0] in ['{','(','['] :
+                text_pos[index] = [token[0],"("]
+            if text[index] == token[0] and token[0] in ['}',')',']']:
+                text_pos[index] = [token[0],")"]
+            pos_vocab[token[1]]+=1
+            index+=1
+        pos_sentences.append(text_pos)
+    return pos_sentences,pos_vocab
+
+def word_pos_2_character_pos(sentences_spans,pos_sentences):
+    pos_sentences_character = list()
+    for sent_index in range(len(sentences_spans)):
+        if "\"" in sentences_spans[sent_index][0]:
+            print "2131"
+        post_sentence_character = list()
+        token_index = 0
+        term = ""
+        for char in sentences_spans[sent_index][0]:
+            if char == ' ' or char == '\t':
+                term = ""
+                post_sentence_character.append("null")
+            else:
+                term += char
+                if term in pos_sentences[sent_index][token_index][0] and len(term) < len(pos_sentences[sent_index][token_index][0]):
+                    if bool(re.compile(r'[\/\:\-]').match(char)):
+                        if len(term) == 1:
+                            post_sentence_character.append(pos_sentences[sent_index][token_index][1])
+                        else:
+                            post_sentence_character.append('Sep')
+                    else:
+                        post_sentence_character.append(pos_sentences[sent_index][token_index][1])
+                elif term in pos_sentences[sent_index][token_index][0] and len(term) == len(pos_sentences[sent_index][token_index][0]):
+                    # if pos[index][token_index][1] =="CD" and bool(re.compile(r'[/\:\-]').match(char)):
+                    #     postag.append('Sep')
+                    # else:
+                    post_sentence_character.append(pos_sentences[sent_index][token_index][1])
+                    token_index += 1
+                    term = ""
+                    if token_index == len(pos_sentences[sent_index]):
+                        print post_sentence_character
+                        pos_sentences_character.append(post_sentence_character)
+    if len(pos_sentences_character) != len(sentences_spans):
+        print "Transformation from word_pos to character_pos failed."
+    return pos_sentences_character
+
+def get_unicode(sentences_spans,unicode_vocab):
+    import unicodedata
+    unicate_sentences = list()
+    for sent in sentences_spans:
+        unicate_sentence = []
+        for char in sent[0]:
+            char_unic  = unicodedata.category(char.decode("utf-8"))
+            unicate_sentence.append(char_unic)
+            unicode_vocab[char_unic] +=1
+        unicate_sentences.append(unicate_sentence)
+    return unicate_sentences, unicode_vocab
+
+

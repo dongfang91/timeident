@@ -8,9 +8,17 @@ if sys.version_info[0]==2:
     import cPickle as pickle
 else:
     import pickle
+import os
+
+def create_folder(filename):
+    a = '/'.join(filename.split('/')[:-1])
+    if not os.path.exists(a):
+        os.makedirs(a)
+
 
 
 def savein_json(filename, array):
+    create_folder(filename)
     with open(filename+'.txt', 'w') as outfile:
         json.dump(array, outfile)
     print("Save into files: ",filename)
@@ -23,6 +31,7 @@ def readfrom_json(filename):
     return data
 
 def savein_pickle(file,array):
+    create_folder(file)
     with open(file, 'wb') as handle:
         pickle.dump(array, handle)
 
@@ -58,6 +67,7 @@ def load_hdf5(filename,labels):
     return data
 
 def save_hdf5(filename,labels,data,dtypes):
+    create_folder(file)
     f = h5py.File(filename+ ".hdf5", "w")
     data_size = len(labels)
     for index in range(data_size):
