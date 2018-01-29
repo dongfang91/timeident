@@ -3,6 +3,8 @@ import re
 from nltk.tokenize import sent_tokenize
 from nltk.tag.stanford import StanfordPOSTagger
 import nltk
+import anafora
+from collections import OrderedDict
 
 def addannotation_to_dict(posi_info_dict,annotation,raw_text):
     if posi_info_dict.has_key(annotation.spans[0][0]):
@@ -16,6 +18,48 @@ def addannotation_to_dict(posi_info_dict,annotation,raw_text):
         anna_info.append(annotation.type)
         posi_info_dict[annotation.spans[0][0]] = anna_info
     return posi_info_dict
+
+def extract_xmltag_timeml(xml_file_dir,raw_text):
+    #annotation = ["TIMEX3"]
+    time_annotation = ["DATE","TIME","DURATION","SET"]
+    data = anafora.AnaforaData.from_file(xml_file_dir)
+    posi_info_dict = dict()
+    for annotation in data.annotations:
+        property = annotation.properties._tag_to_property_xml
+        if property.has_key("type"):
+            type = property["type"].text
+            if type in time_annotation:
+                addannotation_to_dict(posi_info_dict,annotation,raw_text)
+    posi_info_dict = OrderedDict(sorted(posi_info_dict.items()))
+    return posi_info_dict
+
+def extract_xmltag_anafora(xml_file_dir,raw_text):
+    delete_annotation = ["Event","Modifier","PreAnnotation","NotNormalizable"]
+    data = anafora.AnaforaData.from_file(xml_file_dir)
+    posi_info_dict = dict()
+    for annotation in data.annotations:
+        if annotation.type not in delete_annotation:
+            posi_info_dict = addannotation_to_dict(posi_info_dict,annotation,raw_text)
+    posi_info_dict = OrderedDict(sorted(posi_info_dict.items()))
+    return posi_info_dict
+
+def extract_xmltag_anafora_pred(xml_file_dir,raw_text):
+    data = anafora.AnaforaData.from_file(xml_file_dir)
+    posi_info_dict = dict()
+    for annotation in data.annotations:
+
+            if posi_info_dict.has_key(annotation.spans[0][0]):
+                posi_info_dict[annotation.spans[0][0]].append([annotation.spans[0][1],annotation.type])
+            else:
+                anna_info = []
+                print annotation.spans[0][0], annotation.spans[0][1]
+                terms = raw_text[annotation.spans[0][0]:annotation.spans[0][1]]
+                anna_info.append(terms)
+                anna_info.append([annotation.spans[0][1],annotation.type])
+                posi_info_dict[annotation.spans[0][0]] = anna_info
+    posi_info_dict = OrderedDict(sorted(posi_info_dict.items()))
+    return posi_info_dict
+
 
 def text_normalize(rawtext):
     # rawtext = rawtext.replace("•", "\n")
@@ -131,8 +175,6 @@ def get_pos_sentence(sentences_spans,pos_vocab):
 def word_pos_2_character_pos(sentences_spans,pos_sentences):
     pos_sentences_character = list()
     for sent_index in range(len(sentences_spans)):
-        if "\"" in sentences_spans[sent_index][0]:
-            print "2131"
         post_sentence_character = list()
         token_index = 0
         term = ""

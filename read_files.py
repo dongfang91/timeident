@@ -11,7 +11,10 @@ else:
 import os
 
 def create_folder(filename):
-    a = '/'.join(filename.split('/')[:-1])
+    if "\\" in filename:
+        a = '\\'.join(filename.split('\\')[:-1])
+    else:
+        a = '/'.join(filename.split('/')[:-1])
     if not os.path.exists(a):
         os.makedirs(a)
 
@@ -67,14 +70,22 @@ def load_hdf5(filename,labels):
     return data
 
 def save_hdf5(filename,labels,data,dtypes):
-    create_folder(file)
+    create_folder(filename)
     f = h5py.File(filename+ ".hdf5", "w")
     data_size = len(labels)
     for index in range(data_size):
         f.create_dataset(labels[index], data=data[index], dtype=dtypes[index])
 
-def movefiles(old_address,new_address,dir_simples,abbr):
+def movefiles(dir_simples,old_address,new_address,abbr=""):
     for dir_simple in dir_simples:
-        desti = new_address+dir_simple +abbr
-        shutil.copy(old_address+dir_simple+abbr,desti)
+        desti = dir_simple.replace(old_address,new_address)
+        desti = desti.replace("TimeNorm.gold.completed.xml","TimeNorm.system.completed.xml")
+        create_folder(desti)
+        shutil.copy(dir_simple+abbr,desti)
+
+def counterList2Dict (counter_list):
+    dict_new = dict()
+    for item in counter_list:
+        dict_new[item[0]]=item[1]
+    return dict_new
 
