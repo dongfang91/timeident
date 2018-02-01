@@ -6,6 +6,7 @@ from nltk.tokenize import sent_tokenize
 from nltk.tokenize.util import regexp_span_tokenize
 import numpy as np
 from collections import defaultdict
+from random import randint
 
 #anafora.evaluate.score_dirs(reference_dir="data/Cancer_gold", predicted_dir="data/Cancer_Indent/Dev",xml_name_regex=".*.TimeNorm.gold.completed.xml",include="*:<span>")
 
@@ -120,7 +121,7 @@ def get_idx_from_sent(padding_char,sent, word_idx_map, max_l,pad):
         x.append(0)
     return x
 
-def document_level_2_sentence_level(file_dir,xml_path, raw_data_path, preprocessed_path):
+def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path):
 
     max_len_all=list()
 
@@ -131,7 +132,7 @@ def document_level_2_sentence_level(file_dir,xml_path, raw_data_path, preprocess
     for data_id in range(0, len(file_dir)):
         raw_text_path = os.path.join(raw_data_path,file_dir[data_id],file_dir[data_id])
         preprocessed_file_path = os.path.join(preprocessed_path,file_dir[data_id],file_dir[data_id])
-        xml_file_path = os.path.join(xml_path,file_dir[data_id],file_dir[data_id]+output_format)
+
 
         raw_text = read.readfrom_txt(raw_text_path)
         raw_text = process.text_normalize(raw_text)
@@ -140,16 +141,21 @@ def document_level_2_sentence_level(file_dir,xml_path, raw_data_path, preprocess
         #     if max_sent_len >=350:
         #         print raw_data_dir[data_id]
         max_len_all +=max_len_file
-        posi_info_dict = process.extract_xmltag_anafora(xml_file_path,raw_text)
-        sent_tag_list_file = xml_tag_in_sentence(sent_span_list_file,posi_info_dict)
+
         pos_sentences, pos_vocab = process.get_pos_sentence(sent_span_list_file, pos_vocab)
         pos_sentences_character = process.word_pos_2_character_pos(sent_span_list_file, pos_sentences)
         unico_sentences_characte,unicode_vocab = process.get_unicode(sent_span_list_file,unicode_vocab)
-
         read.savein_json(preprocessed_file_path+"_sent",sent_span_list_file)
-        read.savein_json(preprocessed_file_path+"_tag",sent_tag_list_file)
         read.savein_json(preprocessed_file_path + "_pos", pos_sentences_character)
         read.savein_json(preprocessed_file_path + "_unicodecategory", unico_sentences_characte)
+        if xml_path != None:
+            xml_file_path = os.path.join(xml_path, file_dir[data_id], file_dir[data_id] + output_format)
+            posi_info_dict = process.extract_xmltag_anafora(xml_file_path, raw_text)
+            sent_tag_list_file = xml_tag_in_sentence(sent_span_list_file, posi_info_dict)
+            read.savein_json(preprocessed_file_path + "_tag", sent_tag_list_file)
+
+
+
     max_len_all.sort(reverse=True)
     max_len_file_name = "/".join(preprocessed_path.split('/')[:-1])+"/max_len_sent"
     read.savein_json(max_len_file_name, max_len_all)
@@ -208,9 +214,65 @@ def features_extraction(raw_data_dir,output_folder,data_folder = ""):
     input_unic = np.asarray(input_unic, dtype="int")
     read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/train_input"+data_folder, ["char","pos","unic"], [input_char,input_pos,input_unic], ['int8','int8','int8'])
 
+def output_encoding(raw_data_dir,preprocessed_path,data_folder="",activation="softmax",type="interval"):   ###type in "[interval","operator","explicit_operator","implicit_operator"]
+
+    interval = read.textfile2list("data/config_data/label/non-operator.txt")
+    operator = read.textfile2list("data/config_data/label/operator.txt")
+    max_len = 350
+    n_marks = 3
+    max_len_text = 350+2*3
+    n_output = 0
+    final_labels = 0
+
+    if activation == "sigmoid":
+        final_labels = interval+operator
+        n_output = len(final_labels)
+    elif activation =="softmax":
+        if "interval" in type:
+            final_labels = interval
+        elif "operator" in type:
+            final_labels  = operator
+        n_output = len(final_labels) +1
+
+    one_hot = read.counterList2Dict(list(enumerate(final_labels, 1)))
+    output_one_hot = {y:x for x,y in one_hot.iteritems()}
+
+    sample_weights = []
+    total_with_timex =0
+    for data_id in range(0, len(raw_data_dir)):
+        preprocessed_file_path = os.path.join(preprocessed_path, file_dir[data_id], file_dir[data_id])
+        sent_span_list_file = read.readfrom_json(preprocessed_file_path+ "_sent")
+        tag_span_list_file = read.readfrom_json(preprocessed_file_path + "_tag")
+        n_sent = len(tag_span_list_file)
+        for index in range(n_sent):
+            sent_info = sent_span_list_file[index]
+            tag_info = tag_span_list_file[index]
+
+            sentence_start = sent_info[1]
+            label_encoding_sent = np.zeros((max_len_text, n_output))
+
+            sample_weights_sent = np.zeros(max_len_text)
+            for label in tag_info:
+                posi, info = label
+                position = int(posi) - sentence_start
+                posi_end = int(info[0]) -sentence_start
+                info_new = list(set(info[2:]))
+
+                if activation == "sigmoid":
+
+                    sigmoid_indices = [output_one_hot[token_tag] for token_tag in info_new if token_tag in output_one_hot]
+                    k = np.sum(np.eye(n_output)[[sigmoid_index - 1 for sigmoid_index in sigmoid_indices]], axis=0)
+                    label_encoding_sent[position + n_marks:posi_end + n_marks, :] = np.repeat([k], posi_end - position,axis=0)
+                    t = len(sigmoid_indices)
+                    sample_weights_sent[position + n_marks:posi_end + n_marks] = sigmoid_indices[randint(0, t - 1)]
+
+                elif activation == "softmax":
+                    if "_" in type:
 
 
-def main(file_dir,preprocessed_path,mode = "train"):
+
+
+def main(file_dir,preprocessed_path,mode = "pred"):
     file_n = len(file_dir)
     folder_n = np.divide(file_n,20)
     folder = map(lambda x: int(x), np.linspace(0, file_n, folder_n + 1))
@@ -220,6 +282,10 @@ def main(file_dir,preprocessed_path,mode = "train"):
             end = folder[version + 1]
             raw_data_dir_sub = file_dir[start:end]
             features_extraction(raw_data_dir_sub, preprocessed_path, data_folder=str(version))
+            if mode == "train":
+                output_encoding(raw_data_dir_sub,preprocessed_path,data_folder = str(version))
+
+
     else:
         start = 0
         end = file_n
@@ -239,7 +305,7 @@ if __name__ == "__main__":
     file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = output_format )
     print file_dir
     if documents_preprocessed == True:
-        document_level_2_sentence_level(file_dir,xml_path, raw_data_path, preprocessed_path)
+        document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path)
     main(file_dir, preprocessed_path)
 
 

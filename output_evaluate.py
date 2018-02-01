@@ -19,9 +19,9 @@ def span2xmlfiles(data_spans,file_name_simple):
     data.indent()
     return data
 
-def generate_output_multiclass(model,input,doc_list_sub, processed_path,output_pred_path,pred =True,data_folder = "",format_abbre = ".TimeNorm.system.completed.xml"):
-    non_operator = read.textfile2list("data/config_data/label/non-operator.txt")     #### in folder data/label/
-    operator = read.textfile2list("data/config_data/label/operator.txt")     #### in folder data/label/
+def generate_output_multiclass(model,input,gold,doc_list_sub, processed_path,output_pred_path,pred =True,data_folder = "",format_abbre = ".TimeNorm.system.completed.xml"):
+    non_operator = read.textfile2list("data/config_data/label/non-operator.txt")
+    operator = read.textfile2list("data/config_data/label/operator.txt")
     labels_index = [non_operator,operator,operator]
 
     if pred == True:
@@ -77,13 +77,15 @@ def main(model_path,doc_list,raw_data_path, preocessed_path, output_pred_path,ou
             end = folder[version + 1]
             doc_list_sub = doc_list[start:end]
             input = read.load_hdf5(input_path+"/train_input"+str(version),["char","pos","unic"])
-            generate_output_multiclass(model, input, doc_list_sub, preocessed_path,output_pred_path,data_folder = str(version),format_abbre =output_format)
+            gold = None
+            generate_output_multiclass(model, input,gold, doc_list_sub, preocessed_path,output_pred_path,data_folder = str(version),format_abbre =output_format)
     else:
         start = 0
         end = file_n
         doc_list_sub = doc_list[start:end]
         input = read.load_hdf5(input_path+"/train_input", ["char", "pos", "unic"])
-        generate_output_multiclass(model, input,doc_list_sub,preocessed_path, output_pred_path,format_abbre =output_format)
+        gold = None
+        generate_output_multiclass(model, input,gold,doc_list_sub,preocessed_path, output_pred_path,format_abbre =output_format)
 
     if evaluate==True:
         output.evaluate(preocessed_path,output_pred_path,raw_data_path,doc_list,output_format)
