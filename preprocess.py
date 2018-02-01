@@ -107,14 +107,14 @@ def get_idx_from_sent(padding_char,sent, word_idx_map, max_l,pad):
     Transforms sentence into a list of indices. Post-Pad with zeroes.
     """
     x = []
-    for i in xrange(pad):
+    for i in range(pad):
         x.append(word_idx_map[padding_char])
     for word in sent:
         if word in word_idx_map.keys():
             x.append(word_idx_map[word])
         else:
             x.append(word_idx_map["unknown"])
-    for i in xrange(pad):
+    for i in range(pad):
         x.append(word_idx_map[padding_char])
     while len(x) < max_l+ 2 *pad:
         x.append(0)
