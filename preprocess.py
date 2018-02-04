@@ -121,6 +121,40 @@ def get_idx_from_sent(padding_char,sent, word_idx_map, max_l,pad):
         x.append(0)
     return x
 
+def create_class_weight(n_labels, labels, mu):
+    n_softmax = n_labels
+    # class_index = hot_vectors2class_index_forweights(labels)
+    counts = np.zeros(n_softmax, dtype='int32')
+    for softmax_index in labels:
+        softmax_index = np.asarray(softmax_index)
+        for i in range(n_softmax):
+            counts[i] = counts[i] + np.count_nonzero(softmax_index == i)
+
+    labels_dict = read.counterList2Dict(list(enumerate(counts, 0)))
+
+    total = np.sum(labels_dict.values())
+    class_weight = dict()
+
+    for key, item in labels_dict.items():
+        if not item == 0:
+            score = mu * total / float(item)
+            class_weight[key] = score if score > 1.0 else 1.0
+        else:
+            class_weight[key] = 10.0
+
+    return class_weight
+
+
+def get_sample_weights_multiclass(n_labels, labels, mu1):
+    class_weight = create_class_weight(n_labels, labels, mu=mu1)
+    # class_index = np.asarray(hot_vectors2class_index_forweights(labels))
+    samples_weights = list()
+    for instance in labels:
+        sample_weights = [class_weight[category] for category in instance]
+        samples_weights.append(sample_weights)
+    return samples_weights
+
+
 def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path):
 
     max_len_all=list()
@@ -214,8 +248,9 @@ def features_extraction(raw_data_dir,output_folder,data_folder = ""):
     input_unic = np.asarray(input_unic, dtype="int")
     read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/train_input"+data_folder, ["char","pos","unic"], [input_char,input_pos,input_unic], ['int8','int8','int8'])
 
-def output_encoding(raw_data_dir,preprocessed_path,data_folder="",activation="softmax",type="interval"):   ###type in "[interval","operator","explicit_operator","implicit_operator"]
-
+def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softmax",type="interval"):   ###type in "[interval","operator","explicit_operator","implicit_operator"]
+    if type not in ["interval","operator","explicit_operator","implicit_operator"]:
+        return
     interval = read.textfile2list("data/config_data/label/non-operator.txt")
     operator = read.textfile2list("data/config_data/label/operator.txt")
     max_len = 350
@@ -238,6 +273,7 @@ def output_encoding(raw_data_dir,preprocessed_path,data_folder="",activation="so
     output_one_hot = {y:x for x,y in one_hot.iteritems()}
 
     sample_weights = []
+    outputs = []
     total_with_timex =0
     for data_id in range(0, len(raw_data_dir)):
         preprocessed_file_path = os.path.join(preprocessed_path, file_dir[data_id], file_dir[data_id])
@@ -260,19 +296,41 @@ def output_encoding(raw_data_dir,preprocessed_path,data_folder="",activation="so
 
                 if activation == "sigmoid":
 
-                    sigmoid_indices = [output_one_hot[token_tag] for token_tag in info_new if token_tag in output_one_hot]
-                    k = np.sum(np.eye(n_output)[[sigmoid_index - 1 for sigmoid_index in sigmoid_indices]], axis=0)
+                    label_indices = [output_one_hot[token_tag] for token_tag in info_new if token_tag in output_one_hot]
+                    k = np.sum(np.eye(n_output)[[sigmoid_index - 1 for sigmoid_index in label_indices]], axis=0)
+
                     label_encoding_sent[position + n_marks:posi_end + n_marks, :] = np.repeat([k], posi_end - position,axis=0)
-                    t = len(sigmoid_indices)
-                    sample_weights_sent[position + n_marks:posi_end + n_marks] = sigmoid_indices[randint(0, t - 1)]
+
 
                 elif activation == "softmax":
-                    if "_" in type:
+                    label_encoding_sent[:,0] = 1
+                    if "explicit" or "interval" in type:
+                        target_label = process.get_explict_label(info_new, interval, operator)
+
+                    elif "implicit" in type:
+                        target_label = process.get_explict_label(info_new, interval, operator)
+                    label_indices = [output_one_hot[token_tag] for token_tag in target_label if token_tag in final_labels]
+                    k = np.sum(np.eye(n_output)[[softmax_index for softmax_index in label_indices]], axis=0)
+
+                label_encoding_sent[position + n_marks:posi_end + n_marks, :] = np.repeat([k], posi_end - position,axis=0)
+                t = len(label_indices)
+                sample_weights_sent[position + n_marks:posi_end + n_marks] = label_indices[randint(0, t - 1)]
+            sample_weights.append(sample_weights_sent)
+            outputs.append(label_encoding_sent)
+            total_with_timex += 1
+
+        sample_weights = np.asarray(sample_weights)
+        sample_weights_output = get_sample_weights_multiclass(n_output, sample_weights, 0.05)
+        read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/train_output"+type+"_"+activation++data_folder,[type+"_"+activation] , [outputs], ['int8'])
 
 
 
 
-def main(file_dir,preprocessed_path,mode = "pred"):
+
+
+
+
+def main(file_dir,preprocessed_path,mode = ""):
     file_n = len(file_dir)
     folder_n = np.divide(file_n,20)
     folder = map(lambda x: int(x), np.linspace(0, file_n, folder_n + 1))
@@ -291,7 +349,8 @@ def main(file_dir,preprocessed_path,mode = "pred"):
         end = file_n
         raw_data_dir_sub = file_dir[start:end]
         features_extraction(raw_data_dir_sub, preprocessed_path)
-
+        if mode == "train":
+            output_encoding(raw_data_dir_sub, preprocessed_path)
 
 
 raw_data_path = "data/THYMEColonFinal/Dev"
