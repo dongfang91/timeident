@@ -7,18 +7,19 @@ from nltk.tokenize.util import regexp_span_tokenize
 import numpy as np
 from collections import defaultdict
 from random import randint
-
-#anafora.evaluate.score_dirs(reference_dir="data/Cancer_gold", predicted_dir="data/Cancer_Indent/Dev",xml_name_regex=".*.TimeNorm.gold.completed.xml",include="*:<span>")
+import argparse
 
 #############################processing time-ml file into raw data and anofora format ############################################
 # import anafora.timeml as timeml
  # timeml._timeml_dir_to_anafora_dir("data/TBAQ-cleaned/","data/Processed",schema_name="TimeML")
+#################################################################################################################################
 
 ############################  read xml from file  #########################################
 # data = anafora.AnaforaData.from_file("ABC19980108.1830.0711/ABC19980108.1830.0711.TimeNorm.gold.completed.xml")
 # for annotation in data.annotations:
 #     annotation.spans
 #     annotation.type
+###########################################################################################
 
 def get_xml_dir(read_dirname,file_filters=[],file_format=".TimeNorm.gold.completed.xml",has_root_folder=True):
     '''
@@ -155,7 +156,7 @@ def get_sample_weights_multiclass(n_labels, labels, mu1):
     return samples_weights
 
 
-def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path):
+def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format):
 
     max_len_all=list()
 
@@ -183,7 +184,7 @@ def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,x
         read.savein_json(preprocessed_file_path + "_pos", pos_sentences_character)
         read.savein_json(preprocessed_file_path + "_unicodecategory", unico_sentences_characte)
         if xml_path != None:
-            xml_file_path = os.path.join(xml_path, file_dir[data_id], file_dir[data_id] + output_format)
+            xml_file_path = os.path.join(xml_path, file_dir[data_id], file_dir[data_id] + file_format)
             posi_info_dict = process.extract_xmltag_anafora(xml_file_path, raw_text)
             sent_tag_list_file = xml_tag_in_sentence(sent_span_list_file, posi_info_dict)
             read.savein_json(preprocessed_file_path + "_tag", sent_tag_list_file)
@@ -244,7 +245,7 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
     one_hot = read.counterList2Dict(list(enumerate(final_labels, 1)))
     output_one_hot = {y:x for x,y in one_hot.iteritems()}
 
-    sample_weights = []
+    sample_weights_output = []
     outputs = []
     total_with_timex =0
     for data_id in range(0, len(raw_data_dir)):
@@ -260,6 +261,7 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
             label_encoding_sent = np.zeros((max_len_text, n_output))
 
             sample_weights_sent = np.zeros(max_len_text)
+            #print tag_info
             for label in tag_info:
                 posi, info = label
                 position = int(posi) - sentence_start
@@ -286,15 +288,15 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
 
                 label_encoding_sent[position + n_marks:posi_end + n_marks, :] = np.repeat([k], posi_end - position,axis=0)
                 t = len(label_indices)
-                sample_weights_sent[position + n_marks:posi_end + n_marks] = label_indices[randint(0, t - 1)]
-            sample_weights.append(sample_weights_sent)
+                if t>=1:
+                    sample_weights_sent[position + n_marks:posi_end + n_marks] = label_indices[randint(0, t - 1)]
+                sample_weights_output.append(sample_weights_sent)
             outputs.append(label_encoding_sent)
             total_with_timex += 1
 
-        sample_weights = np.asarray(sample_weights)
-        sample_weights_output = get_sample_weights_multiclass(n_output, sample_weights, 0.05)
-        np.save("/".join(output_folder.split('/')[:-1])+"/sample_weights"+type+"_"+activation++data_folder, sample_weights_output)
-
+        sample_weights = np.asarray(sample_weights_output)
+        sample_weights = get_sample_weights_multiclass(n_output, sample_weights, 0.05)
+        np.save("/".join(output_folder.split('/')[:-1])+"/sample_weights"+type+"_"+activation+data_folder, sample_weights)
         read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/train_output"+type+"_"+activation+data_folder,[type+"_"+activation] , [outputs], ['int8'])
 
 def main(file_dir,preprocessed_path,mode = ""):
@@ -308,7 +310,9 @@ def main(file_dir,preprocessed_path,mode = ""):
             raw_data_dir_sub = file_dir[start:end]
             features_extraction(raw_data_dir_sub, preprocessed_path, data_folder=str(version))
             if mode == "train":
-                output_encoding(raw_data_dir_sub,preprocessed_path,data_folder = str(version))
+                output_encoding(raw_data_dir_sub,preprocessed_path,data_folder = str(version),activation="softmax",type="interval")
+                output_encoding(raw_data_dir_sub, preprocessed_path, data_folder=str(version), activation="softmax",type="explicit_operator")
+                output_encoding(raw_data_dir_sub, preprocessed_path, data_folder=str(version),activation="softmax",type="implicit_operator" )
 
 
     else:
@@ -317,25 +321,58 @@ def main(file_dir,preprocessed_path,mode = ""):
         raw_data_dir_sub = file_dir[start:end]
         features_extraction(raw_data_dir_sub, preprocessed_path)
         if mode == "train":
-            output_encoding(raw_data_dir_sub, preprocessed_path)
+            output_encoding(raw_data_dir_sub, preprocessed_path,activation="softmax",type="interval")
+            output_encoding(raw_data_dir_sub, preprocessed_path, activation="softmax",type="explicit_operator")
+            output_encoding(raw_data_dir_sub, preprocessed_path,activation="softmax",type="implicit_operator" )
 
-
-
-
-
-raw_data_path = "data/THYMEColonFinal/Dev"
-xml_path = "data/THYMEColonFinal/Dev"
-preprocessed_path = "data/Processed_THYMEColonFinal1/Dev"
-output_format = ".TimeNorm.gold.completed.xml"
-documents_preprocessed = True
-test_file = read.textfile2list("data/test_file.txt")[20:22]
 
 if __name__ == "__main__":
-    file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = output_format )
-    print file_dir
-    if documents_preprocessed == True:
-        document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path)
-    main(file_dir, preprocessed_path)
+    parser = argparse.ArgumentParser(description='Process features and output encoding for time identification task.')
+    parser.add_argument('--raw',
+                        help='raw data path',required=True)
+    parser.add_argument('--file',
+                        help='files required to be processed',default="")
+    parser.add_argument('--xml',
+                        help='specify anafora documents path if exist',default="")
+
+    parser.add_argument('--out',
+                        help='output path for all preprocessed files',required=True)
+
+    parser.add_argument('--format',
+                        help='output path for all preprocessed files',default=".TimeNorm.gold.completed.xml")
+    parser.add_argument('--processed',
+                        help='Whether requried to be processed',default="true")
+    parser.add_argument('--mode',
+                        help='Whether requried to be processed',default="")
+
+    args = parser.parse_args()
+    raw_data_path = args.raw
+    file_list_name = args.file
+    xml_path = args.xml
+    preprocessed_path = args.out
+    file_format = args.format
+    documents_preprocessed = args.processed
+    mode = args.mode
+    # raw_data_path = "data/THYMEColonFinal/Dev"
+    # xml_path = "data/THYMEColonFinal/Dev"
+    # preprocessed_path = "data/Processed_THYMEColonFinal1/Dev"
+    # output_format = ".TimeNorm.gold.completed.xml"
+    # documents_preprocessed = False
+    # test_file = read.textfile2list("data/test_file.txt")[20:22]
+    # file_list_name = ""
+    # mode = "Train"
+    # file_format = ""
+
+    if file_list_name == "":
+        xml_path = "data/THYMEColonFinal/Dev"
+        test_file = read.textfile2list("data/test_file.txt")[20:22]
+        file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = file_format )
+    else:
+        file_dir = read.textfile2list(file_list_name)
+    #print file_dir
+    if documents_preprocessed == "true":
+        document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format = file_format )
+    main(file_dir, preprocessed_path,mode = "train")
 
 
 

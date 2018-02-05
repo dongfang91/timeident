@@ -3,6 +3,7 @@ import os
 import postprocess_functions as output
 import numpy as np
 from keras.models import load_model
+import argparse
 
 
 def span2xmlfiles(data_spans,file_name_simple):
@@ -87,21 +88,52 @@ def main(model_path,doc_list,raw_data_path, preocessed_path, output_pred_path,ou
         gold = None
         generate_output_multiclass(model, input,gold,doc_list_sub,preocessed_path, output_pred_path,format_abbre =output_format)
 
-    if evaluate==True:
+    if evaluate=="true":
         output.evaluate(preocessed_path,output_pred_path,raw_data_path,doc_list,output_format)
 
 
 
-model_path = "data/config_data/model/char-3softmax-extra/weights-improvement-685.hdf5"
-raw_data_path = "data/THYMEColonFinal/Dev"
-
-preocessed_path = "data/Processed_THYMEColonFinal1/Dev"
-output_pred_path = "data/Cancer_Ident1"
-output_format = ".TimeNorm.system.completed.xml"
-
 if __name__ == "__main__":
-    doc_list = []
-    for doc in os.listdir(preocessed_path):
-        if not doc.endswith(".txt") and not doc.endswith(".npy"):
-            doc_list.append(doc)
-    main(model_path,doc_list,raw_data_path, preocessed_path, output_pred_path,output_format)
+    parser = argparse.ArgumentParser(description='Process features and output encoding for time identification task.')
+    parser.add_argument('--raw',
+                        help='raw data path',required=True)
+    parser.add_argument('--model',
+                        help='specify the model path',default="")
+    parser.add_argument('--preprocessed_path',
+                        help='specify the preprocessed path',default="")
+
+    parser.add_argument('--out',
+                        help='output path for all preprocessed files',required=True)
+
+    parser.add_argument('--format',
+                        help='output path for all preprocessed files',default=".TimeNorm.gold.completed.xml")
+
+    parser.add_argument('--evaluate',
+                        help='Whether requried to be evaluated',default="false")
+
+    parser.add_argument('--mode',
+                        help='Whether requried to calculate the scores',default="false")
+
+    args = parser.parse_args()
+    raw_data_path = args.raw
+    preprocessed_path = args.preocessed_path
+    model_path = args.model
+    output_pred_path = args.out
+    file_format = args.format
+    evaluate = args.evaluate    # true
+    mode = args.mode         # pred
+
+
+    model_path = "data/config_data/model/char-3softmax-extra/weights-improvement-685.hdf5"
+    raw_data_path = "data/THYMEColonFinal/Dev"
+
+    # preocessed_path = "data/Processed_THYMEColonFinal1/Dev"
+    output_pred_path = "data/Cancer_Ident1"
+    output_format = ".TimeNorm.system.completed.xml"
+
+    if __name__ == "__main__":
+        doc_list = []
+        for doc in os.listdir(preprocessed_path):
+            if not doc.endswith(".txt") and not doc.endswith(".npy"):
+                doc_list.append(doc)
+        main(model_path,doc_list,raw_data_path, preprocessed_path, output_pred_path,output_format,pred = mode,evaluate = evaluate)

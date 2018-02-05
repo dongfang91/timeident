@@ -152,15 +152,16 @@ def evaluate(xml_path,output_pred_path,raw_data_path,doc_list,output_format):
     pred_count = 0
     true_count = 0
     for file_id in range(len(doc_list)):
-        gold_tag_dict = get_gold_dict(read.readfrom_json(os.path.join(xml_path, doc_list[file_id], doc_list[file_id] + "_tag")))
-        output_path = os.path.join(output_pred_path, doc_list[file_id], doc_list[file_id] + output_format)
-        raw_text_path = os.path.join(raw_data_path, doc_list[file_id], doc_list[file_id])
-        pre_tag_dict = process.extract_xmltag_anafora_pred(output_path, read.readfrom_txt(raw_text_path))
-        scores = calculate_score(gold_tag_dict, pre_tag_dict)
-        gold_count += scores[0]
-        pred_count += scores[1]
-        true_count += scores[2]
-        metrics(true_count, pred_count, gold_count)
+        if os.path.exists(os.path.join(xml_path, doc_list[file_id], doc_list[file_id] + "_tag")):
+            gold_tag_dict = get_gold_dict(read.readfrom_json(os.path.join(xml_path, doc_list[file_id], doc_list[file_id] + "_tag")))
+            output_path = os.path.join(output_pred_path, doc_list[file_id], doc_list[file_id] + output_format)
+            raw_text_path = os.path.join(raw_data_path, doc_list[file_id], doc_list[file_id])
+            pre_tag_dict = process.extract_xmltag_anafora_pred(output_path, read.readfrom_txt(raw_text_path))
+            scores = calculate_score(gold_tag_dict, pre_tag_dict)
+            gold_count += scores[0]
+            pred_count += scores[1]
+            true_count += scores[2]
+            metrics(true_count, pred_count, gold_count)
 
 
 

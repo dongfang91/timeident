@@ -60,6 +60,43 @@ def extract_xmltag_anafora_pred(xml_file_dir,raw_text):
     posi_info_dict = OrderedDict(sorted(posi_info_dict.items()))
     return posi_info_dict
 
+def get_explict_label(result,explicit_labels1,explicit_labels2):
+
+    if len(result) >1:
+        intersection1 = [x for x in result if x in explicit_labels1]
+        intersection2 = [x for x in result if x in explicit_labels2]
+
+        if len(intersection1) ==1:
+            result = intersection1
+        # elif len(intersection1) > 1:
+        #     implicit_interval = ["Frequency"]
+        #     result = [x for x in intersection1 if x not in implicit_interval]
+
+        elif len(intersection2) >1:    ## to do: [u'3', u'Number', u'Period', u'Sum']   He won the Gusher Marathon, finishing in 3:07:35.
+            implicit_operator = ["Intersection"]
+            result = [x for x in intersection2 if x not in implicit_operator]
+    return [result[0]]
+
+def get_implict_label(result,explicit_labels1,explicit_labels2):
+    #print result
+    if len(result) >1:
+        intersection1 = [x for x in result if x in explicit_labels1]
+        intersection2 = [x for x in result if x in explicit_labels2]
+
+        if len(intersection2) ==1:
+            result = intersection2
+        elif len(intersection2) >1 and len(intersection1) >0:
+            implicit_operator = ["Intersection"]
+            result = [x for x in intersection2 if x not in implicit_operator]
+        elif len(intersection2) >1 and len(intersection1) ==0:   ## to do sum treated as implicit and explicit: [u'3', u'Number', u'Period', u'Sum']   He won the Gusher Marathon, finishing in 3:07:35.
+            implicit_operator = ["Intersection"]   ###special case
+            result = [x for x in intersection2 if x in implicit_operator]
+            if len(result) ==0:
+                result = intersection2
+        return [result[0]]
+    else:
+        return "null"
+
 
 def text_normalize(rawtext):
     # rawtext = rawtext.replace("•", "\n")
