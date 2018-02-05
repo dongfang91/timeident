@@ -343,7 +343,7 @@ if __name__ == "__main__":
     parser.add_argument('--processed',
                         help='Whether requried to be processed',default="true")
     parser.add_argument('--mode',
-                        help='Whether requried to be processed',default="")
+                        help='Whether requried encode the output',default="")
 
     args = parser.parse_args()
     raw_data_path = args.raw
