@@ -1,6 +1,6 @@
 # timeident
 
-Python version: 2.7.13
+Python version: 2.7.13\n
 Python Package: h5py, nltk 3.2.4, anaforatools, keras 1.2.1 , theano 0.9.0
 
 To processe the documents, please run:
