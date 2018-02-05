@@ -119,17 +119,16 @@ if __name__ == "__main__":
     preprocessed_path = args.preocessed_path
     model_path = args.model
     output_pred_path = args.out
-    file_format = args.format
+    output_format = args.format
     evaluate = args.evaluate    # true
     mode = args.mode         # pred
 
 
-    model_path = "data/config_data/model/char-3softmax-extra/weights-improvement-685.hdf5"
-    raw_data_path = "data/THYMEColonFinal/Dev"
-
+    # model_path = "data/config_data/model/char-3softmax-extra/weights-improvement-685.hdf5"
+    # raw_data_path = "data/THYMEColonFinal/Dev"
     # preocessed_path = "data/Processed_THYMEColonFinal1/Dev"
-    output_pred_path = "data/Cancer_Ident1"
-    output_format = ".TimeNorm.system.completed.xml"
+    # output_pred_path = "data/Cancer_Ident1"
+    # output_format = ".TimeNorm.system.completed.xml"
 
     if __name__ == "__main__":
         doc_list = []
