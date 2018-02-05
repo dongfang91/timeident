@@ -282,7 +282,7 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
                         target_label = process.get_explict_label(info_new, interval, operator)
 
                     elif "implicit" in type:
-                        target_label = process.get_explict_label(info_new, interval, operator)
+                        target_label = process.get_implict_label(info_new, interval, operator)
                     label_indices = [output_one_hot[token_tag] for token_tag in target_label if token_tag in final_labels]
                     k = np.sum(np.eye(n_output)[[softmax_index for softmax_index in label_indices]], axis=0)
 
