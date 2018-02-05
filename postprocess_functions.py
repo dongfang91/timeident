@@ -1,7 +1,7 @@
 import os
 import read_files as read
 import numpy as np
-import nlp_functionality as process
+import preprocess_functions as process
 
 def prob2classes_multiclasses( prediction):
     if prediction.shape[-1] > 1:

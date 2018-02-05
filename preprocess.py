@@ -1,5 +1,5 @@
 # encoding: utf-8
-import nlp_functionality as process
+import preprocess_functions as process
 import read_files as read
 import os
 from nltk.tokenize import sent_tokenize
@@ -194,34 +194,6 @@ def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,x
     max_len_file_name = "/".join(preprocessed_path.split('/')[:-1])+"/max_len_sent"
     read.savein_json(max_len_file_name, max_len_all)
 
-####Newswire Dataset #######
-# dirname = "data/TempEval-2013/"
-# output_folder = "data/Processed_TempEval/"
-#max_len_file_name = output_folder +"max_len"
-# xml_file_dir, raw_data_dir =get_xml_dir(dirname,output_folder,format)
-#document_level_2_sentence_level(xml_file_dir, raw_data_dir,raw_data_dir,max_len_file_name)
-
-####Thyme_Colon Dataset #####
-# text = read.textfile2list("data/test_file.txt")
-# output_folder = "data/Processed_THYMEColonFinal/"
-# max_len_file_name = output_folder +"max_len"
-# xml_file_dir = ["data/"+file +"/"+file.split('/')[-1]+".TimeNorm.gold.completed.xml" for file in text if "THYMEColonFinal" in file]
-# raw_data_dir = ["data/"+file +"/"+file.split('/')[-1] for file in text if "THYMEColonFinal" in file]
-# dct_file_dir = ["data/"+file +"/"+file.split('/')[-1]+".dct" for file in text if "THYMEColonFinal" in file]
-# save_data_dir = ["data/"+(file +"/"+file.split('/')[-1]).replace("THYMEColonFinal","Processed_THYMEColonFinal") for file in text if "THYMEColonFinal" in file]
-#
-# print xml_file_dir
-# print raw_data_dir
-
-#output = [("data/"+file +"/"+file.split('/')[-1]+".TimeNorm.system.completed.xml").replace("THYMEColonFinal/Dev","Cancer") for file in text if "THYMEColonFinal" in file]
-# data = read.readfrom_json("data/test_dir_simple")
-# data = ["data/Newswire_new/"+dir_1 +"/" +dir_1+".TimeNorm.gold.completed.xml" for dir_1 in data]
-#read.movefiles(data,"data/Newswire_new","data/Newswire/")
-#document_level_2_sentence_level(xml_file_dir, raw_data_dir,save_data_dir,max_len_file_name)
-
-
-#document_level_2_sentence_level(xml_file_dir, raw_data_dir,max_len_file_name)
-
 def features_extraction(raw_data_dir,output_folder,data_folder = ""):
     max_len = 350
     pad = 3
@@ -321,14 +293,9 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
 
         sample_weights = np.asarray(sample_weights)
         sample_weights_output = get_sample_weights_multiclass(n_output, sample_weights, 0.05)
-        read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/train_output"+type+"_"+activation++data_folder,[type+"_"+activation] , [outputs], ['int8'])
+        np.save("/".join(output_folder.split('/')[:-1])+"/sample_weights"+type+"_"+activation++data_folder, sample_weights_output)
 
-
-
-
-
-
-
+        read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/train_output"+type+"_"+activation+data_folder,[type+"_"+activation] , [outputs], ['int8'])
 
 def main(file_dir,preprocessed_path,mode = ""):
     file_n = len(file_dir)
@@ -351,6 +318,9 @@ def main(file_dir,preprocessed_path,mode = ""):
         features_extraction(raw_data_dir_sub, preprocessed_path)
         if mode == "train":
             output_encoding(raw_data_dir_sub, preprocessed_path)
+
+
+
 
 
 raw_data_path = "data/THYMEColonFinal/Dev"
