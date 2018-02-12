@@ -1,3 +1,10 @@
+"""
+Created on Sat Feb 18 18:50:43 2017
+
+@author: egoitz; dongfang
+"""
+
+
 import sys
 import os
 from lxml import etree

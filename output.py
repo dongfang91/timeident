@@ -1,6 +1,6 @@
 import read_files as read
 import os
-import postprocess_functions as output
+import process_functions as output
 import numpy as np
 from keras.models import load_model
 import argparse
