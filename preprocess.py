@@ -346,36 +346,36 @@ if __name__ == "__main__":
     parser.add_argument('--mode',
                         help='Whether requried encode the output',default="")
 
-    # args = parser.parse_args()
-    # raw_data_path = args.raw
-    # file_list_name = args.file
-    # xml_path = args.xml
-    # preprocessed_path = args.out
-    # file_format = args.format
-    # documents_preprocessed = args.processed
-    # mode = args.mode
-raw_data_path = "data/THYMEColonFinal/Train"
-xml_path = "data/THYMEColonFinal/Train"
-preprocessed_path = "data/Processed_THYMEColonFinal/Train"
-output_format = ".TimeNorm.gold.completed.xml"
-documents_preprocessed = "false"
-test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
-file_list_name = ""
-mode = "dev"
+    args = parser.parse_args()
+    raw_data_path = args.raw
+    file_list_name = args.file
+    xml_path = args.xml
+    preprocessed_path = args.out
+    output_format = args.format
+    documents_preprocessed = args.processed
+    mode = args.mode
+# raw_data_path = "data/THYMEColonFinal/Train"
+# xml_path = "data/THYMEColonFinal/Train"
+# preprocessed_path = "data/Processed_THYMEColonFinal/Train"
+# output_format = ".TimeNorm.gold.completed.xml"
+# documents_preprocessed = "false"
+# test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
+# file_list_name = ""
+# mode = "dev"
 
 
-if file_list_name == "":
-    xml_path = "data/THYMEColonFinal/Train"
-    test_file = [] #read.textfile2list("data/test_file.txt")[20:22]
-    file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = output_format )
-else:
-    file_dir = read.textfile2list(file_list_name)
+    if file_list_name == "":
+        xml_path = "data/THYMEColonFinal/Train"
+        test_file = [] #read.textfile2list("data/test_file.txt")[20:22]
+        file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = output_format )
+    else:
+        file_dir = read.textfile2list(file_list_name)
 
-file_dir.remove("ID001_clinic_001")
-#file_dir = ["ID074_clinic_220"] # "ID010_clinic_030",
-if documents_preprocessed == "true":
-    document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format = output_format )
-main(file_dir[210:], preprocessed_path,mode = mode)
+    #file_dir.remove("ID001_clinic_001")
+    #file_dir = ["ID074_clinic_220"] # "ID010_clinic_030",
+    if documents_preprocessed == "true":
+        document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format = output_format )
+    main(file_dir[210:], preprocessed_path,mode = mode)
 
 
 
