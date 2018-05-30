@@ -83,6 +83,13 @@ def movefiles(dir_simples,old_address,new_address,abbr=""):
         create_folder(desti)
         shutil.copy(dir_simple+abbr,desti)
 
+def movefiles_folders(dir_simples,old_address,new_address,abbr=""):
+    for dir_simple in dir_simples:
+        if not os.path.exists(new_address+"/"+dir_simple):
+            os.makedirs(new_address+"/"+dir_simple)
+        shutil.copy(old_address+"/"+dir_simple+"/"+dir_simple+".TimeNorm.gold.completed.xml",new_address+"/"+dir_simple+"/"+dir_simple+".TimeNorm.gold.completed.xml")
+
+
 def counterList2Dict (counter_list):
     dict_new = dict()
     for item in counter_list:

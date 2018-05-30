@@ -25,7 +25,7 @@ def generate_output_multiclass(model,input,gold,doc_list_sub, processed_path,out
     operator = read.textfile2list("data/config_data/label/operator.txt")
     labels_index = [non_operator,operator,operator]
 
-    if pred == True:
+    if pred == "true":
         classes,probs  = output.make_prediction_function_multiclass(input, model, output_pred_path, data_folder) #,,x_unic_onehot
     else:
         classes= np.load(output_pred_path+"/y_predict_classes"+data_folder+".npy")
@@ -66,73 +66,106 @@ def generate_output_multiclass(model,input,gold,doc_list_sub, processed_path,out
     del classes,probs,input
 
 
-def main(model_path,doc_list,raw_data_path, preocessed_path, output_pred_path,output_format,evaluate = True):
+def main(model_path,input_path,doc_list,raw_data_path, preocessed_path, output_pred_path,output_format,pred="true",evaluate = "true"):
     model = load_model(model_path)
     file_n = len(doc_list)
-    folder_n = np.divide(file_n,20)
+    folder_n = int(np.ceil(np.divide(float(file_n),20.00)))
     folder = map(lambda x: int(x), np.linspace(0, file_n, folder_n + 1))
-    input_path = "/".join(preocessed_path.split('/')[:-1])
+
     if file_n>20:
-        for version in range(6,folder_n):
+        k=1
+        for version in range(k,k+1):
             start = folder[version]
             end = folder[version + 1]
             doc_list_sub = doc_list[start:end]
-            input = read.load_hdf5(input_path+"/train_input"+str(version),["char","pos","unic"])
+            #input = read.load_hdf5(input_path+"/test_split_input"+str(version),["char","pos","unic"])
+            input = read.load_hdf5(input_path + "/split_input" + str(version), ["char", "pos", "unic"])
             gold = None
-            generate_output_multiclass(model, input,gold, doc_list_sub, preocessed_path,output_pred_path,data_folder = str(version),format_abbre =output_format)
+            generate_output_multiclass(model, input,gold, doc_list_sub, preocessed_path,output_pred_path,pred=pred,data_folder = str(version),format_abbre =output_format)
     else:
         start = 0
         end = file_n
         doc_list_sub = doc_list[start:end]
         input = read.load_hdf5(input_path+"/train_input", ["char", "pos", "unic"])
         gold = None
-        generate_output_multiclass(model, input,gold,doc_list_sub,preocessed_path, output_pred_path,format_abbre =output_format)
+        generate_output_multiclass(model, input,gold,doc_list_sub,preocessed_path, output_pred_path,pred="true",data_folder = "",format_abbre =output_format)
 
     if evaluate=="true":
         output.evaluate(preocessed_path,output_pred_path,raw_data_path,doc_list,output_format)
 
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process features and output encoding for time identification task.')
-    parser.add_argument('--raw',
-                        help='raw data path',required=True)
-    parser.add_argument('--model',
-                        help='specify the model path',default="")
-    parser.add_argument('--preprocessed_path',
-                        help='specify the preprocessed path',default="")
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser(description='Process features and output encoding for time identification task.')
+#     parser.add_argument('--raw',
+#                         help='raw data path',required=True)
+#     parser.add_argument('--model',
+#                         help='specify the model path',default="")
+#     parser.add_argument('--preprocessed_path',
+#                         help='specify the preprocessed path',default="")
+#
+#     parser.add_argument('--out',
+#                         help='output path for all preprocessed files',required=True)
+#
+#     parser.add_argument('--format',
+#                         help='output path for all preprocessed files',default=".TimeNorm.gold.completed.xml")
+#
+#     parser.add_argument('--evaluate',
+#                         help='Whether requried to be evaluated',default="false")
+#
+#     parser.add_argument('--mode',
+#                         help='Whether requried to calculate the scores',default="false")
+#
+#     args = parser.parse_args()
+#     raw_data_path = args.raw
+#     preprocessed_path = args.preocessed_path
+#     model_path = args.model
+#     output_pred_path = args.out
+#     output_format = args.format
+#     evaluate = args.evaluate    # true
+#     mode = args.mode         # pred
 
-    parser.add_argument('--out',
-                        help='output path for all preprocessed files',required=True)
 
-    parser.add_argument('--format',
-                        help='output path for all preprocessed files',default=".TimeNorm.gold.completed.xml")
+model_path = "data/model/med+news+rand_3softmax_3_15_gru3input_v1/weights-improvement-35.hdf5"
 
-    parser.add_argument('--evaluate',
-                        help='Whether requried to be evaluated',default="false")
+# raw_data_path = "data/THYMEColonFinal/Dev"
+# preprocessed_path = "data/Processed_THYMEColonFinal/Dev"
+# output_pred_path = "data/output/med_3softmax_4_27_gru3input_google_subpairs_p15n15_v1_42"
+# input_path = "data/Processed_THYMEColonFinal/model_input_test/"
 
-    parser.add_argument('--mode',
-                        help='Whether requried to calculate the scores',default="false")
+# raw_data_path = "data/THYMEBrainFinal/Train"
+# preprocessed_path = "data/Processed_THYMEBrainFinal/Train"
+# output_pred_path = "data/output/brain_char_level_3softmax_3_15_gru3input_v1"
+# input_path = "data/Processed_THYMEBrainFinal"
 
-    args = parser.parse_args()
-    raw_data_path = args.raw
-    preprocessed_path = args.preocessed_path
-    model_path = args.model
-    output_pred_path = args.out
-    output_format = args.format
-    evaluate = args.evaluate    # true
-    mode = args.mode         # pred
+# raw_data_path = "data/Processed_TempEval/Test"
+# preprocessed_path = "data/Processed_TempEval/Test"
+# output_pred_path = "data/output/char_level_3softmax_5_15_embedding_google_pairs_top7_16d_799"
+# input_path = "data/Processed_TempEval/model_input"
+
+raw_data_path = "data/Test_data/TempEval-docs"
+preprocessed_path = "data/Test_data/Processed_THYME-docs"
+output_pred_path = "data/output/THYME-docs_v1"
+input_path = "data/Test_data/"
+
+output_format = ".TimeNorm.gold.completed.xml"
 
 
-    # model_path = "data/config_data/model/char-3softmax-extra/weights-improvement-685.hdf5"
-    # raw_data_path = "data/THYMEColonFinal/Dev"
-    # preocessed_path = "data/Processed_THYMEColonFinal1/Dev"
-    # output_pred_path = "data/Cancer_Ident1"
-    # output_format = ".TimeNorm.system.completed.xml"
+mode = "true"
+evaluate = "true"
+    # if __name__ == "__main__":
+doc_list = []
+for doc in os.listdir(preprocessed_path):
+    if not doc.endswith(".txt") and not doc.endswith(".npy"):
+        doc_list.append(doc)
+#print(len(doc_list))
+main(model_path,input_path,doc_list,raw_data_path, preprocessed_path, output_pred_path,output_format,pred = mode,evaluate = evaluate)
 
-    if __name__ == "__main__":
-        doc_list = []
-        for doc in os.listdir(preprocessed_path):
-            if not doc.endswith(".txt") and not doc.endswith(".npy"):
-                doc_list.append(doc)
-        main(model_path,doc_list,raw_data_path, preprocessed_path, output_pred_path,output_format,pred = mode,evaluate = evaluate)
+
+# read.movefiles()
+# def movefiles(dir_simples,old_address,new_address,abbr=""):
+#     for dir_simple in dir_simples:
+#         desti = dir_simple.replace(old_address,new_address)
+#         desti = desti.replace("TimeNorm.gold.completed.xml","TimeNorm.system.completed.xml")
+#         create_folder(desti)
+#         shutil.copy(dir_simple+abbr,desti)

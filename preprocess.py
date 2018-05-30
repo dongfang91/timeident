@@ -21,6 +21,20 @@ import argparse
 #     annotation.type
 ###########################################################################################
 
+def get_list_name (file_list_name):
+    file_names = read.textfile2list(file_list_name)
+    file_simple = [file_name.split("/")[-1] for file_name in file_names if "THYMEColonFinal" in file_name]
+    read.savein_json(file_list_name.replace(".txt","_simple"),file_simple)
+
+#get_list_name("data/dev_file.txt")
+def get_train():
+    file_dev = read.readfrom_json("data/dev_file_simple")
+    train_all_simple = read.readfrom_json("data/train_all_simple")
+    train = [train_file for train_file in train_all_simple if train_file not in file_dev]
+    read.savein_json("data/train_simple",train)
+
+#get_train()
+
 def get_xml_dir(read_dirname,file_filters=[],file_format=".TimeNorm.gold.completed.xml",has_root_folder=True):
     '''
     get the directory for whole raw data and xml data, using the same root dir raw_text_dir
@@ -70,7 +84,7 @@ def split_by_sentence(raw_text,char_vocab):
                 max_len += multi_sent_len
                 if max(multi_sent_len)>350:
                     print sent
-            else:
+            elif len(list(set(sent)))>=2:
                 sent_span_list.append([sent, sent_span[0], sent_span[1]])
                 max_len.append(len(sent))
     return sent_span_list,max_len,char_vocab
@@ -163,6 +177,7 @@ def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,x
     char_vocab = defaultdict(float)
     pos_vocab = defaultdict(float)
     unicode_vocab = defaultdict(float)
+    word_vocab = defaultdict(float)
 
     for data_id in range(0, len(file_dir)):
         raw_text_path = os.path.join(raw_data_path,file_dir[data_id],file_dir[data_id])
@@ -176,21 +191,24 @@ def document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,x
         max_len_all +=max_len_file
 
         pos_sentences, pos_vocab = process.get_pos_sentence(sent_span_list_file, pos_vocab)
+        #pos_sentences = read.readfrom_json("data/pos_sentences")#read.savein_json("data/pos_sentences",pos_sentences)
+        word_sentences, word_vocab = process.get_words(sent_span_list_file,word_vocab)
         pos_sentences_character = process.word_pos_2_character_pos(sent_span_list_file, pos_sentences)
         unico_sentences_characte,unicode_vocab = process.get_unicode(sent_span_list_file,unicode_vocab)
+
 
 
         read.savein_json(preprocessed_file_path+"_sent",sent_span_list_file)
         read.savein_json(preprocessed_file_path + "_pos", pos_sentences_character)
         read.savein_json(preprocessed_file_path + "_unicodecategory", unico_sentences_characte)
-        if xml_path != None:
+        read.savein_json(preprocessed_file_path + "_words", word_sentences)
+        if xml_path != "":
             xml_file_path = os.path.join(xml_path, file_dir[data_id], file_dir[data_id] + file_format)
             posi_info_dict = process.extract_xmltag_anafora(xml_file_path, raw_text)
             sent_tag_list_file = xml_tag_in_sentence(sent_span_list_file, posi_info_dict)
             read.savein_json(preprocessed_file_path + "_tag", sent_tag_list_file)
 
-
-
+    #read.savein_json("data/word_vocab", word_vocab)
     max_len_all.sort(reverse=True)
     max_len_file_name = "/".join(preprocessed_path.split('/')[:-1])+"/max_len_sent"
     read.savein_json(max_len_file_name, max_len_all)
@@ -206,10 +224,14 @@ def features_extraction(raw_data_dir,output_folder,data_folder = "",mode = "trai
     unicode2int = read.readfrom_json("data/config_data/vocab/unicate2int")
     total = 0
     for data_id in range(0, len(raw_data_dir)):
-        preprocessed_file_path = os.path.join(preprocessed_path, file_dir[data_id], file_dir[data_id])
+        print(raw_data_dir[data_id])
+        preprocessed_file_path = os.path.join(preprocessed_path, raw_data_dir[data_id], raw_data_dir[data_id])
         sent_span_list_file = read.readfrom_json(preprocessed_file_path+ "_sent")
+        print(len(sent_span_list_file))
         pos_sentences_character = read.readfrom_json(preprocessed_file_path + "_pos")
+        print(len(pos_sentences_character))
         unico_sentences_characte = read.readfrom_json(preprocessed_file_path + "_unicodecategory")
+        print(len(unico_sentences_characte))
         n_sent = len(sent_span_list_file)
         for index in range(n_sent):
             total +=1
@@ -224,6 +246,7 @@ def features_extraction(raw_data_dir,output_folder,data_folder = "",mode = "trai
     read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/"+mode+"_input"+data_folder, ["char","pos","unic"], [input_char,input_pos,input_unic], ['int8','int8','int8'])
 
 def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softmax",type="interval",mode = "train"):   ###type in "[interval","operator","explicit_operator","implicit_operator"]
+    target_labels = defaultdict(float)
     if type not in ["interval","operator","explicit_operator","implicit_operator"]:
         return
     interval = read.textfile2list("data/config_data/label/non-operator.txt")
@@ -251,9 +274,11 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
     outputs = []
     total_with_timex =0
     for data_id in range(0, len(raw_data_dir)):
-        preprocessed_file_path = os.path.join(preprocessed_path, file_dir[data_id], file_dir[data_id])
+        preprocessed_file_path = os.path.join(preprocessed_path, raw_data_dir[data_id], raw_data_dir[data_id])
         sent_span_list_file = read.readfrom_json(preprocessed_file_path+ "_sent")
         tag_span_list_file = read.readfrom_json(preprocessed_file_path + "_tag")
+        # if len(sent_span_list_file) != len(tag_span_list_file):
+        #     print preprocessed_file_path
         n_sent = len(tag_span_list_file)
         for index in range(n_sent):
             sent_info = sent_span_list_file[index]
@@ -280,10 +305,16 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
 
 
                 elif activation == "softmax":
-                    if "explicit" or "interval" in type:
+                    if "explicit" in type or "interval" in type:
                         target_label = process.get_explict_label(info_new, interval, operator)
-                    elif "implicit" in type:
+                    elif "implicit" in type.split("_"):
                         target_label = process.get_implict_label(info_new, interval, operator)
+                    for token_tag in target_label:
+                        if token_tag in final_labels:
+                            print sent_info
+                            print label
+                            target_labels[token_tag]+=1.0
+
                     label_indices = [output_one_hot[token_tag] for token_tag in target_label if token_tag in final_labels]
                     k = np.sum(np.eye(n_output)[[softmax_index for softmax_index in label_indices]], axis=0)
                     label_encoding_sent[position + n_marks:posi_end + n_marks, :] = np.repeat([k], posi_end - position,axis=0)
@@ -293,16 +324,17 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
             sample_weights_output.append(sample_weights_sent)
             outputs.append(label_encoding_sent)
             total_with_timex += 1
-            print total_with_timex
+            #print total_with_timex
 
     sample_weights = np.asarray(sample_weights_output)
     sample_weights = get_sample_weights_multiclass(n_output, sample_weights, 0.05)
+    #print target_labels
     np.save("/".join(output_folder.split('/')[:-1])+"/"+mode+ "_sample_weights_"+type+"_"+activation+data_folder, sample_weights)
     read.save_hdf5("/".join(output_folder.split('/')[:-1]) +"/"+mode+"_output_"+type+"_"+activation+data_folder,[type+"_"+activation] , [outputs], ['int8'])
 
 def main(file_dir,preprocessed_path,mode = ""):
     file_n = len(file_dir)
-    folder_n = np.divide(file_n,20)
+    folder_n = int(np.ceil(np.divide(float(file_n),20.00)))
     folder = map(lambda x: int(x), np.linspace(0, file_n, folder_n + 1))
     if "split" in mode:
         for version in range(folder_n):
@@ -327,6 +359,8 @@ def main(file_dir,preprocessed_path,mode = ""):
             output_encoding(raw_data_dir_sub, preprocessed_path,activation="softmax",type="implicit_operator" ,mode = mode)
 
 
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process features and output encoding for time identification task.')
     parser.add_argument('--raw',
@@ -346,36 +380,75 @@ if __name__ == "__main__":
     parser.add_argument('--mode',
                         help='Whether requried encode the output',default="")
 
-    args = parser.parse_args()
-    raw_data_path = args.raw
-    file_list_name = args.file
-    xml_path = args.xml
-    preprocessed_path = args.out
-    output_format = args.format
-    documents_preprocessed = args.processed
-    mode = args.mode
+    # args = parser.parse_args()
+    # raw_data_path = args.raw
+    # file_list_name = args.file
+    # xml_path = args.xml
+    # preprocessed_path = args.out
+    # output_format = args.format
+    # documents_preprocessed = args.processed
+    # mode = args.mode
+
+######brain test#######################
+# raw_data_path = "data/THYMEBrainFinal/Train"
+# xml_path = "data/THYMEBrainFinal/Train"
+# preprocessed_path = "data/Processed_THYMEBrainFinal/Train"
+# output_format = ".TimeNorm.gold.completed.xml"
+# documents_preprocessed = "true"
+# test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
+# file_list_name = ""
+# #file_list_name = "data/dev_file_simple"
+# mode = "test_split"
+#########################################################
+
+######colon  train#######################
 # raw_data_path = "data/THYMEColonFinal/Train"
 # xml_path = "data/THYMEColonFinal/Train"
 # preprocessed_path = "data/Processed_THYMEColonFinal/Train"
 # output_format = ".TimeNorm.gold.completed.xml"
-# documents_preprocessed = "false"
+# documents_preprocessed = "true"
 # test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
 # file_list_name = ""
-# mode = "dev"
+# #file_list_name = "data/dev_file_simple"
+# file_list_name = "data/train_simple"
+# mode = "test_split"
+#########################################################
+raw_data_path = "data/Test_data/THYME-docs"
+xml_path = ""
+preprocessed_path = "data/Test_data/Processed_THYME-docs"
+output_format = ""
+documents_preprocessed = "true"
+test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
+
+file_list_name = ""
+
+mode = "split"
+
+file_dir = os.listdir(raw_data_path)
 
 
-    if file_list_name == "":
-        xml_path = "data/THYMEColonFinal/Train"
-        test_file = [] #read.textfile2list("data/test_file.txt")[20:22]
-        file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = output_format )
-    else:
-        file_dir = read.textfile2list(file_list_name)
 
-    #file_dir.remove("ID001_clinic_001")
-    #file_dir = ["ID074_clinic_220"] # "ID010_clinic_030",
-    if documents_preprocessed == "true":
-        document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format = output_format )
-    main(file_dir[210:], preprocessed_path,mode = mode)
+
+
+# if file_list_name == "":
+#     #xml_path = "data/THYMEColonFinal/Train"
+#     test_file = [] #read.textfile2list("data/test_file.txt")[20:22]
+#     file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = output_format )
+#     #read.savein_json("data/train_all",file_dir)
+# else:
+#     #file_dir = read.textfile2list(file_list_name)
+#     file_dir = read.readfrom_json(file_list_name)
+#     print(len(file_dir))
+
+if "ID001_clinic_001" in file_dir:
+    file_dir.remove("ID001_clinic_001")   ##### Remove this file since it missed some annotations.
+#file_dir = ["doc0003_CLIN"] # "ID010_clinic_030",
+
+#read.movefiles_folders(file_dir,xml_path,new_address="data/THYMEBrainFinal_gold/Train")
+
+#if documents_preprocessed == "true":
+#   document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format = output_format )
+main(file_dir, preprocessed_path,mode = mode)
 
 
 

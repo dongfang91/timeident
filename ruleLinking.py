@@ -33,8 +33,11 @@ parser.add_argument('--output',
                     help='output directory.')
 args = parser.parse_args()
 
-path = args.input
-out_path = args.output
+# path = args.input
+# out_path = args.output
+
+path = "data/Cancer_Ident_new11"
+out_path = "data/Cancer_all"
 
 tnschema = anafora_ego.get_schema(tn_schema)
 types = anafora_ego.get_types(date_types)
@@ -54,7 +57,7 @@ def get_relation(tnschema, parent, child):
 def process_doc(doc):
     for xmlfile in os.listdir(path + '/' + doc):
         axml = etree.parse(path + '/' + doc + '/' + xmlfile)
-        rawfile = open(os.path.join(rawpath,  doc ), 'r')
+        rawfile = open(os.path.join(rawpath, doc, doc ), 'r')
         text = rawfile.read()
         rawfile.close()
 
@@ -209,7 +212,7 @@ def process_doc(doc):
         axml.write(out_path + '/' + doc + '/' + xmlfile, pretty_print=True)
 
 
-if __name__ == "__main__":
-    for doc in os.listdir(path):
-        if not doc.endswith(".txt") and not doc.endswith(".npy"):
-            process_doc(doc)
+# if __name__ == "__main__":
+for doc in os.listdir(path):
+    if not doc.endswith(".txt") and not doc.endswith(".npy"):
+        process_doc(doc)
