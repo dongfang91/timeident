@@ -7,6 +7,15 @@ import anafora
 from collections import OrderedDict
 from collections import deque
 import read_files as read
+import configparser
+
+
+
+
+config = configparser.ConfigParser()
+config.read('ident.conf')
+StandforParser = config['Tool']['StandforParser']
+StandforParser_jar = config['Tool']['StandforParser_jar']
 
 def tokenize_span(txt):
     #english_tokenizer = StanfordTokenizer('C:/Users/dongfangxu9/PycharmProjects/pos_tagger/stanford-postagger.jar',
@@ -39,7 +48,6 @@ def addannotation_to_dict(posi_info_dict,annotation,raw_text):
             posi_info_dict[annotation.spans[0][0]].append(annotation.type)
     else:
         anna_info = []
-        #print annotation.spans[0][0], annotation.spans[0][1]
         terms = raw_text[annotation.spans[0][0]:annotation.spans[0][1]]
         anna_info.append(annotation.spans[0][1])
         anna_info.append(terms)
@@ -233,15 +241,15 @@ def get_pos_sentence(sentences_spans,pos_vocab):
 
     #raw_dir_simple = ["NYT19980206.0466"]
     english_postagger = StanfordPOSTagger(
-        'C:/Users/dongfangxu9/PycharmProjects/pos_tagger/models/english-left3words-distsim.tagger',    #### in folder data/
-        'C:/Users/dongfangxu9/PycharmProjects/pos_tagger/stanford-postagger.jar') #### in folder data/
+        StandforParser,    #### in folder data/
+        StandforParser_jar) #### in folder data/
     english_postagger.java_options = '-mx8000m'
     pos_sentences = list()
 
     for sent_span in sentences_spans:
         print sent_span[0]
         text = nltk.word_tokenize(sent_span[0])
-        text_pos = english_postagger.tag(text)   #####StanfordPnOSTagger failed to tag the underscore, see ttps://github.com/nltk/nltk/issues/1632  if use nltk 3.2.2, please change the code "word_tags = tagged_word.strip().split(self._SEPARATOR)" in function "parse_outputcode" of nltk.standford.py to "word_tags = tagged_word.strip().rsplit(self._SEPARATOR,1)" to handle undersocre issues
+        text_pos = english_postagger.tag(text)   #####StanfordPnOSTagger failed to tag the underscore, see https://github.com/nltk/nltk/issues/1632  if use nltk 3.2.2, please change the code "word_tags = tagged_word.strip().split(self._SEPARATOR)" in function "parse_outputcode" of nltk.standford.py to "word_tags = tagged_word.strip().rsplit(self._SEPARATOR,1)" to handle undersocre issues
 
         index = 0
         for token in text_pos:

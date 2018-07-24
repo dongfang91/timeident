@@ -27,8 +27,8 @@ def make_prediction_function_multiclass(x_data,model,output_path,version = ""):
 
     if not os.path.exists(output_path):
         os.makedirs(output_path)
-    np.save(output_path + "/y_predict_classes"+version, classes)
-    read.savein_pickle(output_path + "/y_predict_proba"+version, y_predict)
+    #np.save(output_path + "/y_predict_classes"+version, classes)
+    #read.savein_pickle(output_path + "/y_predict_proba"+version, y_predict)
 
     return classes,y_predict
 

@@ -8,6 +8,7 @@ import numpy as np
 from collections import defaultdict
 from random import randint
 import argparse
+import configparser
 
 #############################processing time-ml file into raw data and anofora format ############################################
 # import anafora.timeml as timeml
@@ -20,6 +21,18 @@ import argparse
 #     annotation.spans
 #     annotation.type
 ###########################################################################################
+
+config = configparser.ConfigParser()
+config.read('ident.conf')
+char2int_path = config['Encoding_Vocabulary']['Char2Int']
+pos2int_path = config['Encoding_Vocabulary']['Pos2Int']
+unicode2int_path = config['Encoding_Vocabulary']['Unicode2Int']
+non_operator_path = config['Label_Vocabulary']['Non_operator']
+operator_path = config['Label_Vocabulary']['Operator']
+# raw_data_path = config['Data']['raw']
+# xml_path = config['Data']['xml']
+
+
 
 def get_list_name (file_list_name):
     file_names = read.textfile2list(file_list_name)
@@ -35,35 +48,35 @@ def get_train():
 
 #get_train()
 
-def get_xml_dir(read_dirname,file_filters=[],file_format=".TimeNorm.gold.completed.xml",has_root_folder=True):
-    '''
-    get the directory for whole raw data and xml data, using the same root dir raw_text_dir
-    :return:  a list of xml_data directory folder
-    '''
-    file_dir = list()
-    root_folders = list()
-    if has_root_folder ==True:
-        roots = os.listdir(read_dirname)
-        for root in roots:
-            root_com =os.path.join(read_dirname,root)
-            root_folders += [os.path.join(root_com,f) for f in os.listdir(root_com) if os.path.isdir(os.path.join(root_com, f))]
-    else:
-        root_folders = [os.path.join(read_dirname, f) for f in os.listdir(read_dirname)]
-
-    file_filters = [file_filter.split('/')[-1] for file_filter in file_filters ]
-
-
-    for root_folder in root_folders:
-        for file in os.listdir(root_folder):
-                if file_format in file:
-                    file_id = file.replace(file_format,"")
-                    if len(file_filters)>0 and file_id in file_filters:
-                        file_dir.append(file_id)
-                    elif len(file_filters)==0:
-                        file_dir.append(file_id)
-                    else:
-                        pass
-    return file_dir
+# def get_xml_dir(read_dirname,file_filters=[],file_format=".TimeNorm.gold.completed.xml",has_root_folder=True):
+#     '''
+#     get the directory for whole raw data and xml data, using the same root dir raw_text_dir
+#     :return:  a list of xml_data directory folder
+#     '''
+#     file_dir = list()
+#     root_folders = list()
+#     if has_root_folder ==True:
+#         roots = os.listdir(read_dirname)
+#         for root in roots:
+#             root_com =os.path.join(read_dirname,root)
+#             root_folders += [os.path.join(root_com,f) for f in os.listdir(root_com) if os.path.isdir(os.path.join(root_com, f))]
+#     else:
+#         root_folders = [os.path.join(read_dirname, f) for f in os.listdir(read_dirname)]
+#
+#     file_filters = [file_filter.split('/')[-1] for file_filter in file_filters ]
+#
+#
+#     for root_folder in root_folders:
+#         for file in os.listdir(root_folder):
+#                 if file_format in file:
+#                     file_id = file.replace(file_format,"")
+#                     if len(file_filters)>0 and file_id in file_filters:
+#                         file_dir.append(file_id)
+#                     elif len(file_filters)==0:
+#                         file_dir.append(file_id)
+#                     else:
+#                         pass
+#     return file_dir
 
 def split_by_sentence(raw_text,char_vocab):
     sent_tokenize_list = sent_tokenize(raw_text)
@@ -219,9 +232,9 @@ def features_extraction(raw_data_dir,output_folder,data_folder = "",mode = "trai
     input_char = list()
     input_pos = list()
     input_unic = list()
-    char2int = read.readfrom_json("data/config_data/vocab/char2int")
-    pos2int = read.readfrom_json("data/config_data/vocab/pos2int")
-    unicode2int = read.readfrom_json("data/config_data/vocab/unicate2int")
+    char2int = read.readfrom_json(char2int_path)
+    pos2int = read.readfrom_json(pos2int_path)
+    unicode2int = read.readfrom_json(unicode2int_path)
     total = 0
     for data_id in range(0, len(raw_data_dir)):
         print(raw_data_dir[data_id])
@@ -243,14 +256,14 @@ def features_extraction(raw_data_dir,output_folder,data_folder = "",mode = "trai
     input_char = np.asarray(input_char, dtype="int")
     input_pos = np.asarray(input_pos, dtype="int")
     input_unic = np.asarray(input_unic, dtype="int")
-    read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/"+mode+"_input"+data_folder, ["char","pos","unic"], [input_char,input_pos,input_unic], ['int8','int8','int8'])
+    read.save_hdf5("/".join(output_folder.split('/')[:-1])+"/input"+data_folder, ["char","pos","unic"], [input_char,input_pos,input_unic], ['int8','int8','int8'])
 
-def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softmax",type="interval",mode = "train"):   ###type in "[interval","operator","explicit_operator","implicit_operator"]
+def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softmax",type="interval"):   ###type in "[interval","operator","explicit_operator","implicit_operator"]
     target_labels = defaultdict(float)
     if type not in ["interval","operator","explicit_operator","implicit_operator"]:
         return
-    interval = read.textfile2list("data/config_data/label/non-operator.txt")
-    operator = read.textfile2list("data/config_data/label/operator.txt")
+    interval = read.textfile2list(non_operator_path)
+    operator = read.textfile2list(operator_path)
     max_len = 350
     n_marks = 3
     max_len_text = 350+2*3
@@ -273,6 +286,7 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
     sample_weights_output = []
     outputs = []
     total_with_timex =0
+    n_sent_total = 0
     for data_id in range(0, len(raw_data_dir)):
         preprocessed_file_path = os.path.join(preprocessed_path, raw_data_dir[data_id], raw_data_dir[data_id])
         sent_span_list_file = read.readfrom_json(preprocessed_file_path+ "_sent")
@@ -280,6 +294,7 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
         # if len(sent_span_list_file) != len(tag_span_list_file):
         #     print preprocessed_file_path
         n_sent = len(tag_span_list_file)
+        n_sent_total +=n_sent
         for index in range(n_sent):
             sent_info = sent_span_list_file[index]
             tag_info = tag_span_list_file[index]
@@ -311,13 +326,14 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
                         target_label = process.get_implict_label(info_new, interval, operator)
                     for token_tag in target_label:
                         if token_tag in final_labels:
-                            print sent_info
-                            print label
+                            #print sent_info
+                            #print label
                             target_labels[token_tag]+=1.0
 
                     label_indices = [output_one_hot[token_tag] for token_tag in target_label if token_tag in final_labels]
-                    k = np.sum(np.eye(n_output)[[softmax_index for softmax_index in label_indices]], axis=0)
-                    label_encoding_sent[position + n_marks:posi_end + n_marks, :] = np.repeat([k], posi_end - position,axis=0)
+                    if len(label_indices) != 0:
+                        k = np.sum(np.eye(n_output)[[softmax_index for softmax_index in label_indices]], axis=0)
+                        label_encoding_sent[position + n_marks:posi_end + n_marks, :] = np.repeat([k], posi_end - position,axis=0)
                 t = len(label_indices)
                 if t>=1:
                     sample_weights_sent[position + n_marks:posi_end + n_marks] = label_indices[randint(0, t - 1)]
@@ -325,27 +341,27 @@ def output_encoding(raw_data_dir,output_folder,data_folder="",activation="softma
             outputs.append(label_encoding_sent)
             total_with_timex += 1
             #print total_with_timex
-
+    print n_sent_total
     sample_weights = np.asarray(sample_weights_output)
     sample_weights = get_sample_weights_multiclass(n_output, sample_weights, 0.05)
     #print target_labels
-    np.save("/".join(output_folder.split('/')[:-1])+"/"+mode+ "_sample_weights_"+type+"_"+activation+data_folder, sample_weights)
-    read.save_hdf5("/".join(output_folder.split('/')[:-1]) +"/"+mode+"_output_"+type+"_"+activation+data_folder,[type+"_"+activation] , [outputs], ['int8'])
+    np.save("/".join(output_folder.split('/')[:-1])+"/sample_weights" +data_folder+ "_"+type+"_"+activation, sample_weights)
+    read.save_hdf5("/".join(output_folder.split('/')[:-1]) +"/output" + data_folder + "_"+type+"_"+activation,[type+"_"+activation] , [outputs], ['int8'])
 
-def main(file_dir,preprocessed_path,mode = ""):
+def main(file_dir,preprocessed_path,encode_output = True,split_output = True):
     file_n = len(file_dir)
     folder_n = int(np.ceil(np.divide(float(file_n),20.00)))
     folder = map(lambda x: int(x), np.linspace(0, file_n, folder_n + 1))
-    if "split" in mode:
+    if split_output == True:
         for version in range(folder_n):
             start = folder[version]
             end = folder[version + 1]
             raw_data_dir_sub = file_dir[start:end]
             features_extraction(raw_data_dir_sub, preprocessed_path, data_folder=str(version),mode = mode)
-            if "test" in mode:
-                output_encoding(raw_data_dir_sub,preprocessed_path,data_folder = str(version),activation="softmax",type="interval",mode = mode)
-                output_encoding(raw_data_dir_sub, preprocessed_path, data_folder=str(version), activation="softmax",type="explicit_operator",mode = mode)
-                output_encoding(raw_data_dir_sub, preprocessed_path, data_folder=str(version),activation="softmax",type="implicit_operator" ,mode = mode)
+            if encode_output == True:
+                output_encoding(raw_data_dir_sub,preprocessed_path,data_folder = str(version),activation="softmax",type="interval")
+                output_encoding(raw_data_dir_sub, preprocessed_path, data_folder=str(version), activation="softmax",type="explicit_operator")
+                output_encoding(raw_data_dir_sub, preprocessed_path, data_folder=str(version),activation="softmax",type="implicit_operator")
 
 
     else:
@@ -353,102 +369,61 @@ def main(file_dir,preprocessed_path,mode = ""):
         end = file_n
         raw_data_dir_sub = file_dir[start:end]
         features_extraction(raw_data_dir_sub, preprocessed_path,mode = mode)
-        if mode !="" :
-            output_encoding(raw_data_dir_sub, preprocessed_path,activation="softmax",type="interval",mode = mode)
-            output_encoding(raw_data_dir_sub, preprocessed_path, activation="softmax",type="explicit_operator",mode = mode)
-            output_encoding(raw_data_dir_sub, preprocessed_path,activation="softmax",type="implicit_operator" ,mode = mode)
+        if encode_output == True :
+            output_encoding(raw_data_dir_sub, preprocessed_path,activation="softmax",type="interval")
+            output_encoding(raw_data_dir_sub, preprocessed_path, activation="softmax",type="explicit_operator")
+            output_encoding(raw_data_dir_sub, preprocessed_path,activation="softmax",type="implicit_operator")
 
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process features and output encoding for time identification task.')
+
     parser.add_argument('--raw',
-                        help='raw data path',required=True)
-    parser.add_argument('--file',
-                        help='files required to be processed',default="")
+                        help='the direcotory of raw texts',default="")
+
     parser.add_argument('--xml',
-                        help='specify anafora documents path if exist',default="")
+                        help='the direcotory of annotation files',default="")
 
     parser.add_argument('--out',
                         help='output path for all preprocessed files',required=True)
 
     parser.add_argument('--format',
-                        help='output path for all preprocessed files',default=".TimeNorm.gold.completed.xml")
+                        help='the format of annotation file',default=".TimeNorm.gold.completed.xml")
+
     parser.add_argument('--processed',
-                        help='Whether requried to be processed',default="true")
+                        help='whether to process raw texts',default="true")
+
     parser.add_argument('--mode',
-                        help='Whether requried encode the output',default="")
+                        help='Whether to split the raw files into different fractions in order to fit the memory',default="split")
 
-    # args = parser.parse_args()
-    # raw_data_path = args.raw
-    # file_list_name = args.file
-    # xml_path = args.xml
-    # preprocessed_path = args.out
-    # output_format = args.format
-    # documents_preprocessed = args.processed
-    # mode = args.mode
+    args = parser.parse_args()
+    raw_data_path = args.raw
+    xml_path = args.xml
+    preprocessed_path = args.out
 
-######brain test#######################
-# raw_data_path = "data/THYMEBrainFinal/Train"
-# xml_path = "data/THYMEBrainFinal/Train"
-# preprocessed_path = "data/Processed_THYMEBrainFinal/Train"
-# output_format = ".TimeNorm.gold.completed.xml"
-# documents_preprocessed = "true"
-# test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
-# file_list_name = ""
-# #file_list_name = "data/dev_file_simple"
-# mode = "test_split"
-#########################################################
+    output_format = args.format
+    documents_preprocessed = args.processed
+    mode = args.mode
 
-######colon  train#######################
-# raw_data_path = "data/THYMEColonFinal/Train"
-# xml_path = "data/THYMEColonFinal/Train"
-# preprocessed_path = "data/Processed_THYMEColonFinal/Train"
-# output_format = ".TimeNorm.gold.completed.xml"
-# documents_preprocessed = "true"
-# test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
-# file_list_name = ""
-# #file_list_name = "data/dev_file_simple"
-# file_list_name = "data/train_simple"
-# mode = "test_split"
-#########################################################
-raw_data_path = "data/Test_data/THYME-docs"
-xml_path = ""
-preprocessed_path = "data/Test_data/Processed_THYME-docs"
-output_format = ""
-documents_preprocessed = "true"
-test_file =[] #read.textfile2list("data/test_file.txt")[20:22]
+    file_dir = []
+    for doc in os.listdir(raw_data_path):
+        if not doc.endswith(".txt") and not doc.endswith(".npy") and not doc.endswith(".xml") and not doc.endswith(".dct"):
+            file_dir.append(doc)
 
-file_list_name = ""
+    if xml_path =="":
+        encode_output = True
 
-mode = "split"
+    if mode =="split":
+        split_output = True
 
-file_dir = os.listdir(raw_data_path)
+    if documents_preprocessed == "true":
+      document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format = output_format )
 
 
+    main(file_dir, preprocessed_path,encode_output = True,split_output = True)
 
-
-
-# if file_list_name == "":
-#     #xml_path = "data/THYMEColonFinal/Train"
-#     test_file = [] #read.textfile2list("data/test_file.txt")[20:22]
-#     file_dir = get_xml_dir(xml_path, file_filters= test_file,has_root_folder=False,file_format = output_format )
-#     #read.savein_json("data/train_all",file_dir)
-# else:
-#     #file_dir = read.textfile2list(file_list_name)
-#     file_dir = read.readfrom_json(file_list_name)
-#     print(len(file_dir))
-
-if "ID001_clinic_001" in file_dir:
-    file_dir.remove("ID001_clinic_001")   ##### Remove this file since it missed some annotations.
-#file_dir = ["doc0003_CLIN"] # "ID010_clinic_030",
-
-#read.movefiles_folders(file_dir,xml_path,new_address="data/THYMEBrainFinal_gold/Train")
-
-#if documents_preprocessed == "true":
-#   document_level_2_sentence_level(file_dir, raw_data_path, preprocessed_path,xml_path,file_format = output_format )
-main(file_dir, preprocessed_path,mode = mode)
 
 
 
