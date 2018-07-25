@@ -5,8 +5,8 @@ Python version: 3.6.2
 Python Package: h5py, nltk 3.2.4, anaforatools, keras 2.2.0 , theano 1.0.2,regex 2.4.144
 
 ## Package issue
-*StanfordPnOSTagger failed to tag the underscore, see https://github.com/nltk/nltk/issues/1632
-*Please change the code #1 to #2 in nltk.standford.py:
+* StanfordPnOSTagger failed to tag the underscore, see https://github.com/nltk/nltk/issues/1632
+* Please change the code #1 to #2 in nltk.standford.py:
 ```
 #1 word_tags = tagged_word.strip().split(self._SEPARATOR)
 #2 word_tags = tagged_word.strip().rsplit(self._SEPARATOR,1)
